@@ -1,0 +1,295 @@
+openapi: 3.0.3
+info:
+  title: DefektTrack API
+  description: Fullstack Microservice zur Erfassung und Verwaltung von Hardware-Reparaturen
+  version: 1.0.0
+
+
+paths:
+  /laptops:
+    get:
+      summary: Liste aller Laptops abrufen
+      parameters:
+        - name: fehler
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/FehlerKategorie'
+      responses:
+        '200':
+          description: Erfolgreich
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Laptop'
+        '400':
+          description: Ungültige Anfrageparameter
+    post:
+      summary: Neuen Laptop zur Reparatur erfassen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LaptopInput'
+      responses:
+        '201':
+          description: Laptop angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Laptop'
+        '400':
+          description: Ungültige Eingabedaten (z.B. fehlende Pflichtfelder)
+
+
+  /laptops/{id}:
+    get:
+      summary: Einzelnen Laptop samt Logs abrufen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Erfolgreich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Laptop'
+        '400':
+          description: Ungültiges ID-Format
+        '404':
+          description: Laptop nicht gefunden
+
+
+    put:
+      summary: Laptop-Daten oder Fehlerstatus aktualisieren
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LaptopInput'
+      responses:
+        '200':
+          description: Laptop erfolgreich aktualisiert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Laptop'
+        '400':
+          description: Ungültige Eingabedaten oder ID-Format
+        '404':
+          description: Laptop nicht gefunden
+
+
+    delete:
+      summary: Reparierten oder ausgemusterten Laptop löschen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Laptop erfolgreich gelöscht (Kein Inhalt im Body)
+        '400':
+          description: Ungültiges ID-Format
+        '404':
+          description: Laptop nicht gefunden
+
+
+
+
+  /laptops/{id}/logs:
+    post:
+      summary: IT-Log-Eintrag hinzufügen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogEintragInput'
+      responses:
+        '201':
+          description: Log-Eintrag erfolgreich hinzugefügt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogEintrag'
+        '400':
+          description: Ungültige Eingabedaten oder ID-Format
+        '404':
+          description: Laptop nicht gefunden
+
+
+  /laptops/{id}/logs/{logId}:
+    put:
+      summary: Existierenden IT-Log-Eintrag aktualisieren
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogEintragInput'
+      responses:
+        '200':
+          description: Log-Eintrag erfolgreich aktualisiert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogEintrag'
+        '400':
+          description: Ungültige Eingabedaten oder ID-Format
+        '404':
+          description: Laptop oder Log-Eintrag nicht gefunden
+
+
+    delete:
+      summary: IT-Log-Eintrag löschen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Log-Eintrag erfolgreich gelöscht
+        '400':
+          description: Ungültiges ID-Format
+        '404':
+          description: Laptop oder Log-Eintrag nicht gefunden
+
+
+components:
+  schemas:
+    FehlerKategorie:
+      type: string
+      enum:
+        - DISPLAY_SCHADEN
+        - AKKU_DEFEKT
+        - TASTATUR_DEFEKT
+        - SOFTWARE_OS
+        - KEIN_FEHLER
+
+
+    Laptop:
+      type: object
+      required:
+        - id
+        - name
+        - marke
+        - os
+        - fehler
+      properties:
+        id:
+          type: integer
+          example: 1234
+        name:
+          type: string
+          example: HP EliteBook 840
+        marke:
+          type: string
+          example: HP
+        os:
+          type: string
+          example: Windows 11
+        fehler:
+          $ref: '#/components/schemas/FehlerKategorie'
+        it_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEintrag'
+
+
+    LaptopInput:
+      type: object
+      required:
+        - name
+        - marke
+        - os
+        - fehler
+      properties:
+        name:
+          type: string
+          example: HP EliteBook 840
+        marke:
+          type: string
+          example: HP
+        os:
+          type: string
+          example: Windows 11
+        fehler:
+          $ref: '#/components/schemas/FehlerKategorie'
+
+
+    LogEintrag:
+      type: object
+      required:
+        - id
+        - timestamp
+        - bearbeiter
+        - notiz
+      properties:
+        id:
+          type: integer
+          example: 1
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-09-02T10:15:00Z'
+        bearbeiter:
+          type: string
+          example: m.mustermann
+        notiz:
+          type: string
+          example: Gerät erfolgreich repariert.
+
+
+    LogEintragInput:
+      type: object
+      required:
+        - bearbeiter
+        - notiz
+      properties:
+        bearbeiter:
+          type: string
+          example: m.mustermann
+        notiz:
+          type: string
+          example: Gerät erfolgreich repariert.
