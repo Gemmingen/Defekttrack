@@ -6,7 +6,6 @@ import (
 	"defekttrack/api"
 )
 
-// GORM-Modelle
 type LaptopModel struct {
 	ID     int        `gorm:"primaryKey;autoIncrement"`
 	Marke  string     `gorm:"not null"`
@@ -34,7 +33,6 @@ func (m LaptopModel) ToAPI() api.Laptop {
 	for _, l := range m.Logs {
 		apiLogs = append(apiLogs, l.ToAPI())
 	}
-
 	return api.Laptop{
 		Id:     m.ID,
 		Marke:  m.Marke,
