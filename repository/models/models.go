@@ -30,13 +30,9 @@ func (LogModel) TableName() string { return "logs" }
 
 // DB -> API
 func (m LaptopModel) ToAPI() api.Laptop {
-	var logsPtr *[]api.LogEintrag
-	if len(m.Logs) > 0 {
-		apiLogs := make([]api.LogEintrag, len(m.Logs))
-		for i, l := range m.Logs {
-			apiLogs[i] = l.ToAPI()
-		}
-		logsPtr = &apiLogs
+	apiLogs := make([]api.LogEintrag, 0, len(m.Logs))
+	for _, l := range m.Logs {
+		apiLogs = append(apiLogs, l.ToAPI())
 	}
 
 	return api.Laptop{
@@ -45,7 +41,7 @@ func (m LaptopModel) ToAPI() api.Laptop {
 		Name:   m.Name,
 		Os:     m.Os,
 		Fehler: api.FehlerKategorie(m.Fehler),
-		ItLogs: logsPtr,
+		ItLogs: &apiLogs,
 	}
 }
 

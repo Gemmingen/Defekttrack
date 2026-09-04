@@ -16,9 +16,12 @@ type Server struct {
 }
 
 // GET /laptops
+// GET /laptops
 func (s *Server) GetLaptops(ctx echo.Context, params api.GetLaptopsParams) error {
 	var laptopModels []models.LaptopModel
-	query := s.DB
+
+	// Preload lädt die Logs aller Laptops in einem Aufruf mit
+	query := s.DB.Preload("Logs")
 
 	if params.Fehler != nil && string(*params.Fehler) != "" {
 		query = query.Where("fehler = ?", string(*params.Fehler))
@@ -28,9 +31,9 @@ func (s *Server) GetLaptops(ctx echo.Context, params api.GetLaptopsParams) error
 		return ctx.String(http.StatusInternalServerError, "DB-Fehler: "+err.Error())
 	}
 
-	laptops := make([]api.Laptop, len(laptopModels))
-	for i, m := range laptopModels {
-		laptops[i] = m.ToAPI()
+	laptops := make([]api.Laptop, 0, len(laptopModels))
+	for _, m := range laptopModels {
+		laptops = append(laptops, m.ToAPI())
 	}
 
 	return ctx.JSON(http.StatusOK, laptops)
