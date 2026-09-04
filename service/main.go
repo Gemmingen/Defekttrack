@@ -1,8 +1,9 @@
-package main
+package service
 
 import (
 	"database/sql"
 	"defekttrack/api"
+	"defekttrack/repository"
 	"fmt"
 	"log"
 
@@ -59,7 +60,7 @@ CREATE TABLE IF NOT EXISTS logs (
 		},
 	}))
 
-	meinBackend := &Server{DB: db}
+	meinBackend := &repository.Server{DB: db}
 	api.RegisterHandlers(e, meinBackend)
 
 	//Swagger
