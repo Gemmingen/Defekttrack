@@ -1,48 +1,36 @@
 package repository
 
 import (
-	"database/sql"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
-	_ "github.com/lib/pq"
+	"gorm.io/gorm"
 
 	"defekttrack/api"
+	"defekttrack/repository/models"
 )
 
 type Server struct {
-	DB *sql.DB
+	DB *gorm.DB
 }
 
-// GET /laptops (mit optionalem Filter nach Fehlerkategorie)
+// GET /laptops
 func (s *Server) GetLaptops(ctx echo.Context, params api.GetLaptopsParams) error {
-	var rows *sql.Rows
-	var err error
+	var laptopModels []models.LaptopModel
+	query := s.DB
 
 	if params.Fehler != nil && string(*params.Fehler) != "" {
-		query := "SELECT id, marke, name, os, fehler FROM laptops WHERE fehler = $1"
-		rows, err = s.DB.Query(query, string(*params.Fehler))
-	} else {
-		query := "SELECT id, marke, name, os, fehler FROM laptops"
-		rows, err = s.DB.Query(query)
+		query = query.Where("fehler = ?", string(*params.Fehler))
 	}
 
-	if err != nil {
+	if err := query.Find(&laptopModels).Error; err != nil {
 		return ctx.String(http.StatusInternalServerError, "DB-Fehler: "+err.Error())
 	}
-	defer rows.Close()
 
-	laptops := []api.Laptop{}
-	for rows.Next() {
-		var l api.Laptop
-		var fehlerStr string
-		if err := rows.Scan(&l.Id, &l.Marke, &l.Name, &l.Os, &fehlerStr); err != nil {
-			return ctx.String(http.StatusInternalServerError, "Parsing-Fehler: "+err.Error())
-		}
-		l.Fehler = api.FehlerKategorie(fehlerStr)
-		laptops = append(laptops, l)
+	laptops := make([]api.Laptop, len(laptopModels))
+	for i, m := range laptopModels {
+		laptops[i] = m.ToAPI()
 	}
 
 	return ctx.JSON(http.StatusOK, laptops)
@@ -52,92 +40,64 @@ func (s *Server) GetLaptops(ctx echo.Context, params api.GetLaptopsParams) error
 func (s *Server) PostLaptops(ctx echo.Context) error {
 	var input api.LaptopInput
 	if err := ctx.Bind(&input); err != nil {
-		return ctx.String(http.StatusBadRequest, "Ungültiges JSON-Format")
+		return ctx.String(http.StatusBadRequest, "Ungültiges JSON")
 	}
 
-	var newID int
-	query := `INSERT INTO laptops (marke, name, os, fehler) VALUES ($1, $2, $3, $4) RETURNING id`
-	err := s.DB.QueryRow(query, input.Marke, input.Name, input.Os, string(input.Fehler)).Scan(&newID)
-	if err != nil {
-		return ctx.String(http.StatusInternalServerError, "Einfügefehler: "+err.Error())
+	model := models.ToLaptopModel(input)
+	if err := s.DB.Create(&model).Error; err != nil {
+		return ctx.String(http.StatusInternalServerError, "Fehler beim Speichern: "+err.Error())
 	}
 
-	return ctx.JSON(http.StatusCreated, api.Laptop{
-		Id:     newID,
-		Marke:  input.Marke,
-		Name:   input.Name,
-		Os:     input.Os,
-		Fehler: input.Fehler,
-	})
+	return ctx.JSON(http.StatusCreated, model.ToAPI())
 }
 
 // GET /laptops/{id}
 func (s *Server) GetLaptopsId(ctx echo.Context, id int) error {
-	var l api.Laptop
-	var fehlerStr string
-
-	query := "SELECT id, marke, name, os, fehler FROM laptops WHERE id = $1"
-	err := s.DB.QueryRow(query, id).Scan(&l.Id, &l.Marke, &l.Name, &l.Os, &fehlerStr)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ctx.String(http.StatusNotFound, "Laptop nicht gefunden")
-	} else if err != nil {
+	var model models.LaptopModel
+	if err := s.DB.Preload("Logs").First(&model, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ctx.String(http.StatusNotFound, "Laptop nicht gefunden")
+		}
 		return ctx.String(http.StatusInternalServerError, "DB-Fehler: "+err.Error())
 	}
-	l.Fehler = api.FehlerKategorie(fehlerStr)
 
-	// Zubehörige Logs laden
-	logRows, err := s.DB.Query("SELECT id, bearbeiter, notiz, timestamp FROM logs WHERE laptop_id = $1 ORDER BY timestamp DESC", id)
-	if err == nil {
-		defer logRows.Close()
-		logs := []api.LogEintrag{}
-		for logRows.Next() {
-			var logEntry api.LogEintrag
-			if err := logRows.Scan(&logEntry.Id, &logEntry.Bearbeiter, &logEntry.Notiz, &logEntry.Timestamp); err == nil {
-				logs = append(logs, logEntry)
-			}
-		}
-		l.ItLogs = &logs
-	}
-
-	return ctx.JSON(http.StatusOK, l)
+	return ctx.JSON(http.StatusOK, model.ToAPI())
 }
 
 // PUT /laptops/{id}
 func (s *Server) PutLaptopsId(ctx echo.Context, id int) error {
 	var input api.LaptopInput
 	if err := ctx.Bind(&input); err != nil {
-		return ctx.String(http.StatusBadRequest, "Ungültiges JSON-Format")
+		return ctx.String(http.StatusBadRequest, "Ungültiges JSON")
 	}
 
-	query := "UPDATE laptops SET marke = $1, name = $2, os = $3, fehler = $4 WHERE id = $5"
-	res, err := s.DB.Exec(query, input.Marke, input.Name, input.Os, string(input.Fehler), id)
-	if err != nil {
+	var model models.LaptopModel
+	if err := s.DB.First(&model, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ctx.String(http.StatusNotFound, "Laptop nicht gefunden")
+		}
+		return ctx.String(http.StatusInternalServerError, "DB-Fehler: "+err.Error())
+	}
+
+	model.Marke = input.Marke
+	model.Name = input.Name
+	model.Os = input.Os
+	model.Fehler = string(input.Fehler)
+
+	if err := s.DB.Save(&model).Error; err != nil {
 		return ctx.String(http.StatusInternalServerError, "Update-Fehler: "+err.Error())
 	}
 
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		return ctx.String(http.StatusNotFound, "Laptop nicht gefunden")
-	}
-
-	return ctx.JSON(http.StatusOK, api.Laptop{
-		Id:     id,
-		Marke:  input.Marke,
-		Name:   input.Name,
-		Os:     input.Os,
-		Fehler: input.Fehler,
-	})
+	return ctx.JSON(http.StatusOK, model.ToAPI())
 }
 
 // DELETE /laptops/{id}
 func (s *Server) DeleteLaptopsId(ctx echo.Context, id int) error {
-	res, err := s.DB.Exec("DELETE FROM laptops WHERE id = $1", id)
-	if err != nil {
-		return ctx.String(http.StatusInternalServerError, "Löschfehler: "+err.Error())
+	res := s.DB.Delete(&models.LaptopModel{}, id)
+	if res.Error != nil {
+		return ctx.String(http.StatusInternalServerError, "Löschfehler: "+res.Error.Error())
 	}
-
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
+	if res.RowsAffected == 0 {
 		return ctx.String(http.StatusNotFound, "Laptop nicht gefunden")
 	}
 
@@ -148,59 +108,50 @@ func (s *Server) DeleteLaptopsId(ctx echo.Context, id int) error {
 func (s *Server) PostLaptopsIdLogs(ctx echo.Context, id int) error {
 	var input api.LogEintragInput
 	if err := ctx.Bind(&input); err != nil {
-		return ctx.String(http.StatusBadRequest, "Ungültiges JSON-Format")
+		return ctx.String(http.StatusBadRequest, "Ungültiges JSON")
 	}
 
-	var newID int
-	var ts time.Time
-	query := "INSERT INTO logs (laptop_id, bearbeiter, notiz) VALUES ($1, $2, $3) RETURNING id, timestamp"
-	err := s.DB.QueryRow(query, id, input.Bearbeiter, input.Notiz).Scan(&newID, &ts)
-	if err != nil {
-		return ctx.String(http.StatusInternalServerError, "Fehler beim Erstellen des Log-Eintrags: "+err.Error())
+	logModel := models.ToLogModel(input, id)
+	if err := s.DB.Create(&logModel).Error; err != nil {
+		return ctx.String(http.StatusInternalServerError, "Fehler beim Erstellen des Logs: "+err.Error())
 	}
 
-	return ctx.JSON(http.StatusCreated, api.LogEintrag{
-		Id:         newID,
-		Bearbeiter: input.Bearbeiter,
-		Notiz:      input.Notiz,
-		Timestamp:  ts,
-	})
+	return ctx.JSON(http.StatusCreated, logModel.ToAPI())
 }
 
 // PUT /laptops/{id}/logs/{logId}
 func (s *Server) PutLaptopsIdLogsLogId(ctx echo.Context, id int, logId int) error {
 	var input api.LogEintragInput
 	if err := ctx.Bind(&input); err != nil {
-		return ctx.String(http.StatusBadRequest, "Ungültiges JSON-Format")
+		return ctx.String(http.StatusBadRequest, "Ungültiges JSON")
 	}
 
-	var ts time.Time
-	query := "UPDATE logs SET bearbeiter = $1, notiz = $2 WHERE id = $3 AND laptop_id = $4 RETURNING timestamp"
-	err := s.DB.QueryRow(query, input.Bearbeiter, input.Notiz, logId, id).Scan(&ts)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ctx.String(http.StatusNotFound, "Log-Eintrag nicht gefunden")
-	} else if err != nil {
+	var logModel models.LogModel
+	if err := s.DB.Where("id = ? AND laptop_id = ?", logId, id).First(&logModel).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ctx.String(http.StatusNotFound, "Log nicht gefunden")
+		}
+		return ctx.String(http.StatusInternalServerError, "DB-Fehler: "+err.Error())
+	}
+
+	logModel.Bearbeiter = input.Bearbeiter
+	logModel.Notiz = input.Notiz
+
+	if err := s.DB.Save(&logModel).Error; err != nil {
 		return ctx.String(http.StatusInternalServerError, "Update-Fehler: "+err.Error())
 	}
 
-	return ctx.JSON(http.StatusOK, api.LogEintrag{
-		Id:         logId,
-		Bearbeiter: input.Bearbeiter,
-		Notiz:      input.Notiz,
-		Timestamp:  ts,
-	})
+	return ctx.JSON(http.StatusOK, logModel.ToAPI())
 }
 
 // DELETE /laptops/{id}/logs/{logId}
 func (s *Server) DeleteLaptopsIdLogsLogId(ctx echo.Context, id int, logId int) error {
-	res, err := s.DB.Exec("DELETE FROM logs WHERE id = $1 AND laptop_id = $2", logId, id)
-	if err != nil {
-		return ctx.String(http.StatusInternalServerError, "Löschfehler: "+err.Error())
+	res := s.DB.Where("id = ? AND laptop_id = ?", logId, id).Delete(&models.LogModel{})
+	if res.Error != nil {
+		return ctx.String(http.StatusInternalServerError, "Löschfehler: "+res.Error.Error())
 	}
-
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		return ctx.String(http.StatusNotFound, "Log-Eintrag nicht gefunden")
+	if res.RowsAffected == 0 {
+		return ctx.String(http.StatusNotFound, "Log nicht gefunden")
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
