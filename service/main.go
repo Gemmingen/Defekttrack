@@ -1,40 +1,54 @@
-package main
+package service
 
 import (
+	"database/sql"
+	"defekttrack/api"
+	"defekttrack/repository"
 	"fmt"
 	"log"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-
-	"defekttrack/api"
-	"defekttrack/repository"
-	"defekttrack/repository/models"
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	connStr := "host=localhost port=5432 user=postgres password=secret dbname=laptopdb sslmode=disable"
 
-	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("DB-Verbindungsfehler: %v", err)
 	}
+	defer db.Close()
 
-	sqlDB, err := db.DB()
-	if err != nil || sqlDB.Ping() != nil {
+	// Prüfen ob DB erreichbar
+	if err := db.Ping(); err != nil {
 		log.Fatalf("DB nicht erreichbar: %v", err)
 	}
 	fmt.Println("Erfolgreich mit Postgres verbunden!")
 
-	// Import aus dem models-Package
-	err = db.AutoMigrate(&models.LaptopModel{}, &models.LogModel{})
-	if err != nil {
-		log.Fatalf("Fehler bei AutoMigrate: %v", err)
-	}
-	fmt.Println("Tabellen erfolgreich migriert!")
+	createTableSQL := `
+CREATE TABLE IF NOT EXISTS laptops (
+    id SERIAL PRIMARY KEY,
+    marke TEXT NOT NULL,
+    name TEXT NOT NULL,
+    os TEXT NOT NULL,
+    fehler TEXT NOT NULL
+);
 
+CREATE TABLE IF NOT EXISTS logs (
+    id SERIAL PRIMARY KEY,
+    laptop_id INT NOT NULL REFERENCES laptops(id) ON DELETE CASCADE,
+    bearbeiter TEXT NOT NULL,
+    notiz TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);`
+	//Tabellen erstellen
+	if _, err := db.Exec(createTableSQL); err != nil {
+		log.Fatalf("Fehler beim Erstellen der Tabelle: %v", err)
+	}
+
+	//Echo und Backend
 	e := echo.New()
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogURI:    true,
@@ -46,9 +60,10 @@ func main() {
 		},
 	}))
 
-	repository := &repository.Server{DB: db}
-	api.RegisterHandlers(e, repository)
+	meinBackend := &repository.Server{DB: db}
+	api.RegisterHandlers(e, meinBackend)
 
+	//Swagger
 	e.Static("/openapi.yaml", "openapi.yaml")
 	e.GET("/swagger", func(c echo.Context) error {
 		html := `<!DOCTYPE html>
