@@ -5,7 +5,7 @@ import (
 	"gorm.io/gorm"
 
 	"defekttrack/api"
-	"defekttrack/repository/models" // Unter-Package importieren
+	"defekttrack/repository/models"
 )
 
 type Repository interface {
