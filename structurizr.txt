@@ -1,0 +1,94 @@
+workspace "DefektTrack" "Architekturmodell" {
+
+    model {
+        # Personen (Level 1)
+        nutzer = person "Nutzer" "Erfasst seinen defekten Laptop."
+        itSupport = person "IT-Support Mitarbeiter" "Überprüft Laptops und verwaltet Reparatur-Logs."
+
+        # Software System (Level 1)
+        defektTrack = softwareSystem "DefektTrack Microservice" "Fullstack CRUD-Anwendung zur Erfassung und Verwaltung von Hardware-Reparaturen." {
+            
+            # Container (Level 2)
+            database = container "PostgreSQL Datenbank" "Speichert Laptops und Logs." "PostgreSQL 15" "Database"
+            
+            webApp = container "DefektTrack Backend API" "Verarbeitet API-Anfragen und Geschäftslogik." "Go / Echo" {
+                
+                # Komponenten (Level 3)
+                routerHandler = component "Handler Layer" "Nimmt HTTP-Anfragen entgegen und liefert JSON zurück." "Echo Handler"
+                serviceLayer = component "Service Layer" "Prüft Geschäftsregeln wie Marken und Textlängen." "Go Service"
+                repoLayer = component "Repository Layer" "Führt Datenbank-Zugriffe mit GORM aus." "Go Repository"
+                modelsLayer = component "Repository Models" "Hält DB-Modelle und wandelt Daten um." "GORM Structs & Mapper"
+            }
+        }
+
+        # Beziehungen Level 1: Nutzer
+        nutzer -> defektTrack "Erfasst neuen defekten Laptop [POST /laptops]" "HTTPS / JSON"
+        nutzer -> defektTrack "Ruft Laptop-Details & Logs ab [GET /laptops/{id}]" "HTTPS / JSON"
+
+        # Beziehungen Level 1: IT-Support
+        itSupport -> defektTrack "Liest und filtert Laptop-Liste [GET /laptops]" "HTTPS / JSON"
+        itSupport -> defektTrack "Aktualisiert Laptop-Daten & Status [PUT /laptops/{id}]" "HTTPS / JSON"
+        itSupport -> defektTrack "Löscht ausgemusterte Laptops [DELETE /laptops/{id}]" "HTTPS / JSON"
+        itSupport -> defektTrack "Verwaltet Support-Logs [POST/PUT/DELETE /laptops/{id}/logs]" "HTTPS / JSON"
+
+        # Beziehungen Level 2
+        nutzer -> webApp "Nutzt REST-API [HTTPS / JSON]"
+        itSupport -> webApp "Nutzt REST-API [HTTPS / JSON]"
+        webApp -> database "Liest und schreibt Daten [SQL / Port 5432]"
+
+        # Beziehungen Level 3
+        nutzer -> routerHandler "Nutzt REST-API" 
+        routerHandler -> serviceLayer "Ruft Service auf"
+        serviceLayer -> repoLayer "Ruft Repository auf"
+        repoLayer -> modelsLayer "Nutzt DB-Modelle"
+        repoLayer -> database "Führt SQL-Abfragen aus"
+    }
+
+    views {
+        # Level 1: System Context
+        systemContext defektTrack "SystemContextView" {
+            include *
+            autoLayout lr
+            description "Level 1: System Context Diagramm für DefektTrack."
+        }
+
+        # Level 2: Container Diagramm (Klick auf DefektTrack Microservice)
+        container defektTrack "ContainerView" {
+            include *
+            autoLayout lr
+            description "Level 2: Übersicht der Container."
+        }
+
+        # Level 3: Component Diagramm (Klick auf DefektTrack Backend API)
+        component webApp "ComponentView" {
+            include *
+            autoLayout tb
+            description "Level 3: 3-Schichten-Architektur im Backend."
+        }
+
+        styles {
+            element "Person" {
+                background #08427b
+                color #ffffff
+                shape Person
+            }
+            element "Software System" {
+                background #1168bd
+                color #ffffff
+            }
+            element "Container" {
+                background #1168bd
+                color #ffffff
+            }
+            element "Database" {
+                shape Cylinder
+                background #004080
+                color #ffffff
+            }
+            element "Component" {
+                background #85bbf0
+                color #000000
+            }
+        }
+    }
+}
