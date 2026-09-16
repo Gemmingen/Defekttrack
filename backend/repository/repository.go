@@ -5,7 +5,6 @@ import (
 	"gorm.io/gorm"
 
 	"defekttrack/api"
-	"defekttrack/repository/models"
 )
 
 type Repository interface {
@@ -29,7 +28,7 @@ func ConnectAndMigrate(connStr string) (*gorm.DB, error) {
 		return nil, err
 	}
 	// Import aus dem models-Package
-	if err := db.AutoMigrate(&models.LaptopModel{}, &models.LogModel{}); err != nil {
+	if err := db.AutoMigrate(LaptopModel{}, LogModel{}); err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -40,7 +39,7 @@ func New(db *gorm.DB) Repository {
 }
 
 func (r *gormRepository) FindAll(fehlerFilter string) ([]api.Laptop, error) {
-	var dbModels []models.LaptopModel
+	var dbModels []LaptopModel
 	query := r.db.Preload("Logs")
 	if fehlerFilter != "" {
 		query = query.Where("fehler = ?", fehlerFilter)
@@ -57,7 +56,7 @@ func (r *gormRepository) FindAll(fehlerFilter string) ([]api.Laptop, error) {
 }
 
 func (r *gormRepository) FindByID(id int) (api.Laptop, error) {
-	var m models.LaptopModel
+	var m LaptopModel
 	if err := r.db.Preload("Logs").First(&m, id).Error; err != nil {
 		return api.Laptop{}, err
 	}
@@ -65,7 +64,7 @@ func (r *gormRepository) FindByID(id int) (api.Laptop, error) {
 }
 
 func (r *gormRepository) Create(input api.LaptopInput) (api.Laptop, error) {
-	dbModel := models.ToLaptopModel(input)
+	dbModel := ToLaptopModel(input)
 	if err := r.db.Create(&dbModel).Error; err != nil {
 		return api.Laptop{}, err
 	}
@@ -73,7 +72,7 @@ func (r *gormRepository) Create(input api.LaptopInput) (api.Laptop, error) {
 }
 
 func (r *gormRepository) Update(id int, input api.LaptopInput) (api.Laptop, error) {
-	var m models.LaptopModel
+	var m LaptopModel
 	if err := r.db.First(&m, id).Error; err != nil {
 		return api.Laptop{}, err
 	}
@@ -89,7 +88,7 @@ func (r *gormRepository) Update(id int, input api.LaptopInput) (api.Laptop, erro
 }
 
 func (r *gormRepository) Delete(id int) error {
-	res := r.db.Delete(&models.LaptopModel{}, id)
+	res := r.db.Delete(LaptopModel{}, id)
 	if res.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
@@ -97,7 +96,7 @@ func (r *gormRepository) Delete(id int) error {
 }
 
 func (r *gormRepository) CreateLog(laptopID int, input api.LogEintragInput) (api.LogEintrag, error) {
-	logModel := models.ToLogModel(input, laptopID)
+	logModel := ToLogModel(input, laptopID)
 	if err := r.db.Create(&logModel).Error; err != nil {
 		return api.LogEintrag{}, err
 	}
@@ -105,7 +104,7 @@ func (r *gormRepository) CreateLog(laptopID int, input api.LogEintragInput) (api
 }
 
 func (r *gormRepository) UpdateLog(laptopID int, logID int, input api.LogEintragInput) (api.LogEintrag, error) {
-	var logModel models.LogModel
+	var logModel LogModel
 	if err := r.db.Where("id = ? AND laptop_id = ?", logID, laptopID).First(&logModel).Error; err != nil {
 		return api.LogEintrag{}, err
 	}
@@ -119,7 +118,7 @@ func (r *gormRepository) UpdateLog(laptopID int, logID int, input api.LogEintrag
 }
 
 func (r *gormRepository) DeleteLog(id int, laptopID int) error {
-	res := r.db.Where("id = ? AND laptop_id = ?", id, laptopID).Delete(&models.LogModel{})
+	res := r.db.Where("id = ? AND laptop_id = ?", id, laptopID).Delete(LogModel{})
 	if res.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
