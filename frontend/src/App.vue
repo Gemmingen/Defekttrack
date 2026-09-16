@@ -48,7 +48,7 @@ const handleCreateLog = () => {
       <div v-if="error" class="error-banner">{{ error }}</div>
 
       <div class="dashboard-grid">
-        <!-- Linke Spalte: Erfassung & Filter-Liste -->
+        <!-- Linke Spalte: Erfassung und Filter-Liste -->
         <aside class="sidebar-panel">
           <LaptopForm @submit="createLaptop" />
 

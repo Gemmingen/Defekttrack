@@ -1,21 +1,25 @@
 import { ref } from 'vue';
-import { laptopApi } from '../api/laptopApi';
-import type { Laptop, LaptopInput, LogEintragInput } from '../types/laptop';
+import { DefaultService } from '../api/generated';
+import type { Laptop, LaptopInput, LogEintragInput, FehlerKategorie } from '../api/generated';
 
 export function useDefektTrack() {
   const laptops = ref<Laptop[]>([]);
   const selectedLaptop = ref<Laptop | null>(null);
   const activeFilter = ref<string>('Alle');
-  const isLoading = ref(false);
+  const isLoading = ref<boolean>(false);
   const error = ref<string | null>(null);
 
   const fetchLaptops = async (filter?: string) => {
     isLoading.value = true;
     error.value = null;
     try {
-      laptops.value = await laptopApi.getAll(filter);
-    } catch (err: any) {
-      error.value = err.message;
+      const category = filter && filter !== 'Alle' ? (filter as FehlerKategorie) : undefined;
+      laptops.value = await DefaultService.getLaptops(category);
+      if (selectedLaptop.value) {
+        selectedLaptop.value = laptops.value.find(l => l.id === selectedLaptop.value?.id) || null;
+      }
+    } catch (e: any) {
+      error.value = e.message || 'Fehler beim Laden der Laptops';
     } finally {
       isLoading.value = false;
     }
@@ -23,43 +27,38 @@ export function useDefektTrack() {
 
   const createLaptop = async (input: LaptopInput) => {
     try {
-      await laptopApi.create(input);
+      await DefaultService.postLaptops(input);
       await fetchLaptops(activeFilter.value);
-    } catch (err: any) {
-      error.value = err.message;
+    } catch (e: any) {
+      error.value = e.message || 'Erfassung fehlgeschlagen';
     }
   };
 
   const removeLaptop = async (id: number) => {
     try {
-      await laptopApi.delete(id);
+      await DefaultService.deleteLaptops(id);
       if (selectedLaptop.value?.id === id) selectedLaptop.value = null;
       await fetchLaptops(activeFilter.value);
-    } catch (err: any) {
-      error.value = err.message;
+    } catch (e: any) {
+      error.value = e.message || 'Löschen fehlgeschlagen';
     }
   };
 
   const addLog = async (laptopId: number, input: LogEintragInput) => {
     try {
-      await laptopApi.createLog(laptopId, input);
-      const updated = await laptopApi.getById(laptopId);
-      selectedLaptop.value = updated;
+      await DefaultService.postLaptopsLogs(laptopId, input);
       await fetchLaptops(activeFilter.value);
-    } catch (err: any) {
-      error.value = err.message;
+    } catch (e: any) {
+      error.value = e.message || 'Log konnte nicht gespeichert werden';
     }
   };
 
-  
   const removeLog = async (laptopId: number, logId: number) => {
     try {
-      await laptopApi.deleteLog(laptopId, logId);
-      const updated = await laptopApi.getById(laptopId);
-      selectedLaptop.value = updated;
+      await DefaultService.deleteLaptopsLogs(laptopId, logId);
       await fetchLaptops(activeFilter.value);
-    } catch (err: any) {
-      error.value = err.message;
+    } catch (e: any) {
+      error.value = e.message || 'Log konnte nicht gelöscht werden';
     }
   };
 
@@ -73,6 +72,6 @@ export function useDefektTrack() {
     createLaptop,
     removeLaptop,
     addLog,
-    removeLog
+    removeLog,
   };
 }
