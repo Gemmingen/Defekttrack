@@ -36,8 +36,8 @@ const handleSubmit = () => {
     <OnyxHeadline is="h3">Hardware-Defekt melden</OnyxHeadline>
     
     <form @submit.prevent="handleSubmit" class="form-grid">
-      <OnyxInput label="Hersteller / Marke" v-model="form.marke" required placeholder="z.B. Lenovo" />
-      <OnyxInput label="Gerätename / Modell" v-model="form.name" required placeholder="z.B. ThinkPad T14" />
+      <OnyxInput label="Hersteller / Marke" v-model="form.marke" required placeholder="z.B. Lenovo" message="Erlaubte Marken: HP, Lenovo, Dell, Apple, Asus, Acer" />
+      <OnyxInput label="Gerätename / Modell" v-model="form.name" required placeholder="z.B. ThinkPad T14" message="Exaktes Modell angeben"/>
       <OnyxInput label="Betriebssystem" v-model="form.os" required />
       
       <OnyxSelect 
