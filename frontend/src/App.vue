@@ -85,7 +85,7 @@ const handleCreateLog = () => {
           </div>
         </aside>
 
-        <!-- Rechte Spalte: Detail-Ansicht & Support-Logs -->
+        <!-- Rechte Spalte: Laptop Details und Support-Logs -->
         <section class="detail-panel">
           <div v-if="selectedLaptop" class="sd-card detail-card">
             <div class="detail-header">
@@ -108,7 +108,7 @@ const handleCreateLog = () => {
 
             <div class="sd-divider"></div>
 
-            <!-- Support Log Historie -->
+            <!-- Support Logs -->
             <OnyxHeadline is="h3">IT-Support Logs</OnyxHeadline>
             
             <div class="logs-wrapper">
