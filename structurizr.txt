@@ -17,7 +17,6 @@ workspace "DefektTrack" "Architekturmodell" {
                 routerHandler = component "Handler Layer" "Nimmt HTTP-Anfragen entgegen und liefert JSON zurück." "Echo Handler"
                 serviceLayer = component "Service Layer" "Prüft Geschäftsregeln wie Marken und Textlängen." "Go Service"
                 repoLayer = component "Repository Layer" "Führt Datenbank-Zugriffe mit GORM aus." "Go Repository"
-                modelsLayer = component "Repository Models" "Hält DB-Modelle und wandelt Daten um." "GORM Structs & Mapper"
             }
         }
 

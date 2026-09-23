@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "sit-onyx": "^1.20.0"
+  },
+  "devDependencies": {
+    "@sit-onyx/icons": "^1.12.0"
+  }
+}
