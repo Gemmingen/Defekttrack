@@ -1,36 +1,39 @@
 <script setup lang="ts">
 import { OnyxSelect } from 'sit-onyx';
 import LaptopForm from './LaptopForm.vue';
+import {
+  FILTER_OPTIONS,
+  CATEGORY_LABELS,
+  type FilterCategory,
+} from '../constants/categories';
+import type { Laptop, LaptopInput } from '../api/generated';
 
 defineProps<{
-  laptops: any[];
-  selectedLaptop: any | null;
-  activeFilter: string;
-  categories: string[];
+  laptops: Laptop[];
+  selectedLaptop: Laptop | null;
+  activeFilter: FilterCategory;
   isLoading: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:activeFilter', val: string): void;
-  (e: 'selectLaptop', laptop: any): void;
-  (e: 'createLaptop', data: any): void;
+  (e: 'update:activeFilter', val: FilterCategory): void;
+  (e: 'selectLaptop', laptop: Laptop): void;
+  (e: 'createLaptop', data: LaptopInput): void;
 }>();
 </script>
 
 <template>
   <aside class="sidebar-panel">
     <LaptopForm @submit="emit('createLaptop', $event)" />
-
     <div class="sd-card filter-card">
       <OnyxSelect
         label="Filter nach Kategorie"
         listLabel="Kategorien auswählen"
         :model-value="activeFilter"
-        :options="categories.map(c => ({ label: c, value: c }))"
-        @update:model-value="emit('update:activeFilter', $event)"
+        :options="FILTER_OPTIONS"
+        @update:model-value="emit('update:activeFilter', $event as FilterCategory)"
       />
     </div>
-
     <div class="list-container">
       <div v-if="isLoading" class="loading-text">Lade Datensätze...</div>
       <div v-else class="laptop-list">
@@ -43,7 +46,7 @@ const emit = defineEmits<{
         >
           <div class="card-head">
             <strong>{{ laptop.marke }} {{ laptop.name }}</strong>
-            <span class="tag-category">{{ laptop.fehler }}</span>
+            <span class="tag-category">{{ CATEGORY_LABELS[laptop.fehler] || laptop.fehler }}</span>
           </div>
           <div class="card-sub">{{ laptop.os }}</div>
           <div class="card-foot">
@@ -61,20 +64,17 @@ const emit = defineEmits<{
   flex-direction: column;
   gap: var(--onyx-spacing-md);
 }
-
 .sd-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: var(--onyx-radius-md);
   padding: var(--onyx-spacing-lg);
 }
-
 .laptop-list {
   display: flex;
   flex-direction: column;
   gap: var(--onyx-spacing-xs);
 }
-
 .laptop-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -83,23 +83,19 @@ const emit = defineEmits<{
   cursor: pointer;
   transition: all 0.2s ease;
 }
-
 .laptop-card:hover {
   border-color: #00a3e0;
 }
-
 .laptop-card.active {
   border-color: #051829;
   border-left: 4px solid #00a3e0;
   background: #fafafa;
 }
-
 .card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
 .tag-category {
   background: #e6f7ff;
   color: #005b9a;
@@ -108,13 +104,11 @@ const emit = defineEmits<{
   padding: 2px 8px;
   border-radius: 4px;
 }
-
 .card-sub {
   font-size: 13px;
   color: #718096;
   margin-top: 2px;
 }
-
 .card-foot {
   font-size: 11px;
   color: #a0aec0;

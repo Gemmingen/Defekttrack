@@ -4,17 +4,24 @@ import { useDefektTrack } from './composables/useDefektTrack';
 import DigitsHeader from './components/DigitsHeader.vue';
 import LaptopSidebar from './components/LaptopSidebar.vue';
 import LaptopDetail from './components/LaptopDetail.vue';
+import type { FilterCategory } from './constants/categories';
 
 const {
-  laptops, selectedLaptop, activeFilter, isLoading, error,
-  fetchLaptops, createLaptop, removeLaptop, addLog, removeLog
+  laptops,
+  selectedLaptop,
+  activeFilter,
+  isLoading,
+  error,
+  fetchLaptops,
+  createLaptop,
+  removeLaptop,
+  addLog,
+  removeLog,
 } = useDefektTrack();
-
-const categories = ['Alle', 'Hardware', 'Display', 'Akku', 'Software', 'Netzwerk', 'Sonstiges'];
 
 onMounted(() => fetchLaptops());
 
-const handleFilterChange = (val: string) => {
+const handleFilterChange = (val: FilterCategory) => {
   activeFilter.value = val;
   fetchLaptops(val);
 };
@@ -33,22 +40,18 @@ const handleRemoveLog = (logId: number) => {
 <template>
   <div class="sd-app">
     <DigitsHeader />
-
     <main class="sd-main">
       <div v-if="error" class="error-banner">{{ error }}</div>
-
       <div class="dashboard-grid">
         <LaptopSidebar
           :laptops="laptops"
           :selected-laptop="selectedLaptop"
           :active-filter="activeFilter"
-          :categories="categories"
           :is-loading="isLoading"
           @update:active-filter="handleFilterChange"
           @select-laptop="selectedLaptop = $event"
           @create-laptop="createLaptop"
         />
-
         <LaptopDetail
           :selected-laptop="selectedLaptop"
           @remove-laptop="removeLaptop"
@@ -64,7 +67,6 @@ const handleRemoveLog = (logId: number) => {
 :root {
   --onyx-font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-
 .sd-app {
   min-height: 100vh;
   background-color: #f4f6f8;
@@ -73,19 +75,16 @@ const handleRemoveLog = (logId: number) => {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 .sd-main {
   max-width: 1400px;
   margin: var(--onyx-spacing-xl) auto;
   padding: 0 var(--onyx-spacing-md);
 }
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: 400px 1fr;
   gap: var(--onyx-spacing-xl);
 }
-
 .error-banner {
   background: #fff5f5;
   color: #c53030;

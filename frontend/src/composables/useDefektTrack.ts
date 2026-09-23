@@ -1,22 +1,25 @@
 import { ref } from 'vue';
 import { DefaultService } from '../api/generated';
 import type { Laptop, LaptopInput, LogEintragInput, FehlerKategorie } from '../api/generated';
+import { ALL_FILTER_VALUE, type FilterCategory } from '../constants/categories';
 
 export function useDefektTrack() {
   const laptops = ref<Laptop[]>([]);
   const selectedLaptop = ref<Laptop | null>(null);
-  const activeFilter = ref<string>('Alle');
+  const activeFilter = ref<FilterCategory>(ALL_FILTER_VALUE);
   const isLoading = ref<boolean>(false);
   const error = ref<string | null>(null);
 
-  const fetchLaptops = async (filter?: string) => {
+  const fetchLaptops = async (filter: FilterCategory = activeFilter.value) => {
     isLoading.value = true;
     error.value = null;
     try {
-      const category = filter && filter !== 'Alle' ? (filter as FehlerKategorie) : undefined;
+      const category: FehlerKategorie | undefined =
+        filter !== ALL_FILTER_VALUE ? filter : undefined;
+
       laptops.value = await DefaultService.getLaptops(category);
       if (selectedLaptop.value) {
-        selectedLaptop.value = laptops.value.find(l => l.id === selectedLaptop.value?.id) || null;
+        selectedLaptop.value = laptops.value.find((l) => l.id === selectedLaptop.value?.id) || null;
       }
     } catch (e: any) {
       error.value = e.message || 'Fehler beim Laden der Laptops';
