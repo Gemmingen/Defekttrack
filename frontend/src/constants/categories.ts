@@ -12,13 +12,11 @@ export const CATEGORY_LABELS: Record<FehlerKategorie, string> = {
   [FehlerKategorie.KEIN_FEHLER]: 'Kein Fehler',
 };
 
-// Formular-Optionen (nur echte FehlerKategorien)
 export const CATEGORY_OPTIONS: SelectOption<FehlerKategorie>[] = Object.values(FehlerKategorie).map((value) => ({
   label: CATEGORY_LABELS[value],
   value,
 }));
 
-// Filter-Optionen (inkl. "ALL"), explizit als SelectOption<FilterCategory>[] typisiert
 export const FILTER_OPTIONS: SelectOption<FilterCategory>[] = [
   { label: 'Alle Kategorien', value: ALL_FILTER_VALUE },
   ...CATEGORY_OPTIONS,
