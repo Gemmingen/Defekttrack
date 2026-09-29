@@ -12,11 +12,18 @@ workspace "DefektTrack" "Architekturmodell" {
             database = container "PostgreSQL Datenbank" "Speichert Laptops und Logs." "PostgreSQL 15" "Database"
             
             webApp = container "DefektTrack Backend API" "Verarbeitet API-Anfragen und Geschäftslogik." "Go / Echo" {
-                
                 # Komponenten (Level 3)
                 routerHandler = component "Handler Layer" "Nimmt HTTP-Anfragen entgegen und liefert JSON zurück." "Echo Handler"
                 serviceLayer = component "Service Layer" "Prüft Geschäftsregeln wie Marken und Textlängen." "Go Service"
                 repoLayer = component "Repository Layer" "Führt Datenbank-Zugriffe mit GORM aus." "Go Repository"
+            }
+
+            frontend = container "DefektTrack Frontend" "Stellt Benutzeroberfläche bereit und schickt Anfragen ans Backend." "Vue" { 
+                app = component "App.vue" "Orchestriert das Frontend" "Vue"
+                components = component "Frontend Components" "Sidebar, Navbar, Logfield, Buttons" "Vue Component"
+                composables = component "Frontend Composables" "Stellt Methoden bereit, die das Frontend nutzt" "TypeScript"
+                constants = component "Frontend Constants" "Konstanten und Records fürs Select und Enums" "TypeScript"
+                api = component "API-Schnittstelle" "Generierte Schnittstelle zum Backend" "Axios / Fetch"
             }
         }
 
@@ -31,38 +38,54 @@ workspace "DefektTrack" "Architekturmodell" {
         itSupport -> defektTrack "Verwaltet Support-Logs [POST/PUT/DELETE /laptops/{id}/logs]" "HTTPS / JSON"
 
         # Beziehungen Level 2
-        nutzer -> webApp "Nutzt REST-API [HTTPS / JSON]"
-        itSupport -> webApp "Nutzt REST-API [HTTPS / JSON]"
-        webApp -> database "Liest und schreibt Daten [SQL / Port 5432]"
+        nutzer -> frontend "Nutzt Benutzeroberfläche" "HTTPS"
+        itSupport -> frontend "Nutzt Benutzeroberfläche" "HTTPS"
+        frontend -> webApp "Fetches Backend API" "HTTPS / JSON"
+        webApp -> database "Liest und schreibt Daten" "SQL / Port 5432"
 
-        # Beziehungen Level 3
-        nutzer -> routerHandler "Nutzt REST-API" 
+        # Beziehungen Level 3 (Frontend)
+        nutzer -> app "Ruft das Frontend auf und schickt Anfragen"
+        itSupport -> app "Ruft das Frontend auf und schickt Anfragen" 
+        app -> composables "Nutzt Methoden (z.B. GetLaptops())"
+        composables -> api "Ruft Schnittstelle auf"
+        composables -> constants "Liest Konstanten & Enums"
+        components -> constants "Liest Konstanten & Enums"
+        app -> components "Rendert Frontend-Komponenten"
+        api -> routerHandler "Schickt HTTP-Anfragen an" "HTTPS / JSON"
+
+        # Beziehungen Level 3 (Backend)
         routerHandler -> serviceLayer "Ruft Service auf"
         serviceLayer -> repoLayer "Ruft Repository auf"
-        repoLayer -> modelsLayer "Nutzt DB-Modelle"
-        repoLayer -> database "Führt SQL-Abfragen aus"
+        repoLayer -> database "Führt SQL-Abfragen aus" "SQL"
     }
 
     views {
         # Level 1: System Context
         systemContext defektTrack "SystemContextView" {
-            include *
+            include itSupport defekttrack
             autoLayout lr
             description "Level 1: System Context Diagramm für DefektTrack."
         }
 
-        # Level 2: Container Diagramm (Klick auf DefektTrack Microservice)
+        # Level 2: Container Diagramm
         container defektTrack "ContainerView" {
-            include *
+            include nutzer frontend webApp itSupport database
             autoLayout lr
             description "Level 2: Übersicht der Container."
         }
 
-        # Level 3: Component Diagramm (Klick auf DefektTrack Backend API)
-        component webApp "ComponentView" {
+        # Level 3: Component Diagramm für Backend
+        component webApp "BackendComponentView" {
             include *
             autoLayout tb
             description "Level 3: 3-Schichten-Architektur im Backend."
+        }
+
+        # Level 3: Component Diagramm für Frontend (NEU)
+        component frontend "FrontendComponentView" {
+            include *
+            autoLayout tb
+            description "Level 3: Komponenten-Architektur im Frontend."
         }
 
         styles {
